@@ -3,11 +3,23 @@ import streamlit as st
 from dotenv import load_dotenv
 from transcript_fetcher import fetch_transcript
 from summarizer import summarize_text
+from streamlit_cookies_manager import EncryptedCookieManager
+from datetime import datetime, timedelta
 
 # Load environment variables
 load_dotenv()
 APP_USERNAME = os.getenv("APP_USERNAME")
 APP_PASSWORD = os.getenv("APP_PASSWORD")
+COOKIE_PASSWORD = os.getenv("COOKIE_PASSWORD", "a-very-secure-password")
+
+# Initialize cookie manager
+cookies = EncryptedCookieManager(
+    prefix="myapp_",
+    password=COOKIE_PASSWORD,
+)
+
+if not cookies.ready():
+    st.stop()
 
 def extract_video_id(youtube_url):
     from urllib.parse import urlparse, parse_qs
@@ -27,18 +39,23 @@ def login():
     st.title("Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
+    remember_me = st.checkbox("Remember Me")
     login_button = st.button("Login")
 
     if login_button:
         if username == APP_USERNAME and password == APP_PASSWORD:
             st.session_state["authenticated"] = True
+            if remember_me:
+                expires_at = datetime.now() + timedelta(days=365)
+                cookies.set("auth_token", "logged_in", expires_at=expires_at)
+                cookies.save()
             st.rerun()
         else:
             st.error("Invalid username or password.")
 
 def main_app():
-    st.title("YouTube Transcript Summarizer")
-    st.subheader("Fetch and summarize transcripts from one or multiple YouTube videos")
+    st.title("YouTube Transcript")
+    st.subheader("Fetch and NLP'd transcripts from one or multiple YouTube videos")
 
     youtube_urls_input = st.text_area(
         "Enter YouTube Video URLs (one per line):",
@@ -79,7 +96,7 @@ def main_app():
 
     if st.button("Summarize"):
         youtube_urls = [url.strip() for url in youtube_urls_input.splitlines() if url.strip()]
-        
+
         if not youtube_urls:
             st.warning("Please enter at least one valid YouTube URL.")
             return
@@ -129,7 +146,7 @@ def main_app():
                     min_tokens=min_tokens,
                     max_tokens=max_tokens,
                 )
-            st.markdown("### Combined Summary for All Videos")
+            st.markdown("### Combined Answer for All Videos")
             st.write(summary)
         else:
             # Summarize each transcript individually
@@ -142,11 +159,15 @@ def main_app():
                         min_tokens=min_tokens,
                         max_tokens=max_tokens,
                     )
-                st.markdown(f"### Summary for {url}")
+                st.markdown(f"### Answer for {url}")
                 st.write(summary)
 
+# Check authentication from cookie
 if "authenticated" not in st.session_state:
-    st.session_state["authenticated"] = False
+    if "auth_token" in cookies and cookies["auth_token"] == "logged_in":
+        st.session_state["authenticated"] = True
+    else:
+        st.session_state["authenticated"] = False
 
 if not st.session_state["authenticated"]:
     login()
