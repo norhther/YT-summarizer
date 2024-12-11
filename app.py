@@ -47,7 +47,7 @@ def login():
             st.session_state["authenticated"] = True
             if remember_me:
                 expires_at = datetime.now() + timedelta(days=365)
-                cookies.set("auth_token", "logged_in", expires_at=expires_at)
+                cookies["auth_token"] = "logged_in"
                 cookies.save()
             st.rerun()
         else:
