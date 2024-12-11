@@ -78,16 +78,6 @@ def main_app():
 
                     st.subheader("Summary:")
                     st.write(summary)
-                    """
-                    if generate_audio_checkbox:
-                        with st.spinner("Generating audio..."):
-                            audio_file = generate_audio(summary, language="EN", output_path="summary_audio.wav")
-                            if audio_file:
-                                st.audio(audio_file, format="audio/wav")
-                                st.success("Audio generated and played!")
-                            else:
-                                st.error("Failed to generate audio.")
-                    """
                 else:
                     st.error("Failed to fetch transcript. Please check the video URL or language availability.")
             else:
