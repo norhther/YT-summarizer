@@ -2,18 +2,17 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 from transcript_fetcher import fetch_transcript
-
+from summarizer import summarize_text
 
 # Load environment variables
 load_dotenv()
 APP_USERNAME = os.getenv("APP_USERNAME")
 APP_PASSWORD = os.getenv("APP_PASSWORD")
 
-# Function to extract video ID
 def extract_video_id(youtube_url):
     from urllib.parse import urlparse, parse_qs
     try:
-        parsed_url = urlparse(youtube_url)
+        parsed_url = urlparse(youtube_url.strip())
         if parsed_url.hostname in ['www.youtube.com', 'youtube.com']:
             return parse_qs(parsed_url.query).get('v', [None])[0]
         elif parsed_url.hostname == 'youtu.be':
@@ -24,7 +23,6 @@ def extract_video_id(youtube_url):
         st.error(f"Error extracting video ID: {e}")
         return None
 
-# Authentication logic
 def login():
     st.title("Login")
     username = st.text_input("Username")
@@ -38,55 +36,115 @@ def login():
         else:
             st.error("Invalid username or password.")
 
-# Main application after login
 def main_app():
-    from summarizer import summarize_text
-    # from melo_module import generate_audio
     st.title("YouTube Transcript Summarizer")
-    st.subheader("Fetch, summarize YouTube transcripts")
+    st.subheader("Fetch and summarize transcripts from one or multiple YouTube videos")
 
-    # Input for YouTube video URL
-    youtube_url = st.text_input("Enter YouTube Video URL:", help="Paste the full YouTube video URL here.")
+    youtube_urls_input = st.text_area(
+        "Enter YouTube Video URLs (one per line):",
+        help="Paste one or more YouTube URLs, each on its own line."
+    )
 
-    # Optional system prompt customization
-    default_system_prompt = "You are an assistant that summarizes text concisely."
-    system_prompt = st.text_area("System Prompt (Optional)", default_system_prompt, help="Modify the agent's behavior.")
+    default_system_prompt = "You are an assistant that summarizes text concisely and accurately."
+    system_prompt = st.text_area(
+        "System Prompt (Optional)",
+        default_system_prompt,
+        help="Influence the assistant's overall behavior."
+    )
 
-    # Custom min and max lengths
+    default_user_prompt = (
+        "Please summarize the following text:\n\n{text}\n\n"
+        "The summary should have at least {min_tokens} tokens and no more than {max_tokens} tokens."
+    )
+    user_prompt_template = st.text_area(
+        "User Prompt Template (Optional)",
+        default_user_prompt,
+        help="Customize your request. Use {text}, {min_tokens}, and {max_tokens} as placeholders."
+    )
+
     col1, col2 = st.columns(2)
     with col1:
-        min_length = st.number_input("Min Length", min_value=10, max_value=10000, value=300, step=100)
+        min_tokens = st.number_input("Min Tokens", min_value=10, max_value=1000, value=30, step=10)
     with col2:
-        max_length = st.number_input("Max Length", min_value=20, max_value=10000, value=500, step=100)
+        max_tokens = st.number_input("Max Tokens", min_value=50, max_value=2000, value=120, step=10)
 
-    # Checkbox for audio generation
-    # generate_audio_checkbox = st.checkbox("Generate audio for the summary")
+    # Checkbox to combine transcripts of ALL videos before summarizing
+    use_entire_transcript = st.checkbox("Combine all transcripts into one summary", value=False)
 
-    # Button to fetch and summarize
+    # Initialize session_state for caching if not present
+    if "transcripts" not in st.session_state:
+        st.session_state["transcripts"] = {}
+    if "last_video_urls" not in st.session_state:
+        st.session_state["last_video_urls"] = []
+
     if st.button("Summarize"):
-        if youtube_url:
-            # Extract video ID
-            video_id = extract_video_id(youtube_url)
-            if video_id:
-                with st.spinner("Fetching transcript..."):
-                    transcript = fetch_transcript(video_id)
+        youtube_urls = [url.strip() for url in youtube_urls_input.splitlines() if url.strip()]
+        
+        if not youtube_urls:
+            st.warning("Please enter at least one valid YouTube URL.")
+            return
 
-                if transcript:
-                    st.success("Transcript fetched successfully!")
-                    with st.spinner("Summarizing..."):
-                        summary = summarize_text(transcript, min_length=min_length, max_length=max_length, system_prompt=system_prompt)
+        # Check if URLs changed from last time
+        urls_changed = (youtube_urls != st.session_state["last_video_urls"])
+        st.session_state["last_video_urls"] = youtube_urls
 
-                    st.subheader("Summary:")
-                    st.write(summary)
-                else:
-                    st.error("Failed to fetch transcript. Please check the video URL or language availability.")
+        transcripts = []
+        all_valid = True
+
+        # Only fetch if needed
+        for url in youtube_urls:
+            video_id = extract_video_id(url)
+            if not video_id:
+                st.error(f"Invalid YouTube URL: {url}")
+                all_valid = False
+                break
+
+            # Check if transcript is cached
+            if video_id in st.session_state["transcripts"] and not urls_changed:
+                # Use cached transcript
+                transcripts.append(st.session_state["transcripts"][video_id])
             else:
-                st.error("Invalid YouTube URL. Please provide a valid link.")
+                # Need to fetch transcript (either not cached or URLs changed)
+                with st.spinner(f"Fetching transcript for {url}..."):
+                    transcript = fetch_transcript(video_id)
+                if not transcript:
+                    st.error(f"Failed to fetch transcript for {url}. Check if the video is valid or has a transcript.")
+                    all_valid = False
+                    break
+                else:
+                    st.success(f"Transcript fetched successfully for {url}!")
+                    st.session_state["transcripts"][video_id] = transcript
+                    transcripts.append(transcript)
+
+        if not all_valid:
+            return
+
+        if use_entire_transcript:
+            combined_transcript = "\n\n".join(transcripts)
+            with st.spinner("Summarizing all transcripts together..."):
+                summary = summarize_text(
+                    transcript=combined_transcript,
+                    system_prompt=system_prompt,
+                    user_prompt_template=user_prompt_template,
+                    min_tokens=min_tokens,
+                    max_tokens=max_tokens,
+                )
+            st.markdown("### Combined Summary for All Videos")
+            st.write(summary)
         else:
-            st.warning("Please enter a valid YouTube Video URL.")
+            # Summarize each transcript individually
+            for url, transcript in zip(youtube_urls, transcripts):
+                with st.spinner(f"Summarizing transcript for {url}..."):
+                    summary = summarize_text(
+                        transcript=transcript,
+                        system_prompt=system_prompt,
+                        user_prompt_template=user_prompt_template,
+                        min_tokens=min_tokens,
+                        max_tokens=max_tokens,
+                    )
+                st.markdown(f"### Summary for {url}")
+                st.write(summary)
 
-
-# Main execution logic
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 

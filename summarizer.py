@@ -6,35 +6,35 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = OpenAI(
-  api_key=os.environ['TOKEN'],
+    api_key=os.environ['TOKEN'],
 )
 
-def summarize_text(text, min_length=30, max_length=120, system_prompt="You are an assistant that summarizes text concisely."):
+def summarize_text(transcript, system_prompt, user_prompt_template, min_tokens=10, max_tokens=500):
     """
     Summarize text using OpenAI's GPT model.
-    :param text: The text to summarize
-    :param min_length: Minimum length of the summary
-    :param max_length: Maximum length of the summary
+    :param transcript: The transcript text (or placeholder if not used)
     :param system_prompt: The system message to guide the summarizer's behavior
+    :param user_prompt_template: A template for the user prompt, including placeholders for dynamic content
+    :param min_tokens: Minimum number of tokens for the summary
+    :param max_tokens: Maximum number of tokens for the summary
     :return: Summary as a string
     """
     try:
+        user_prompt = user_prompt_template.format(
+            text=transcript,
+            min_tokens=min_tokens,
+            max_tokens=max_tokens
+        )
+
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt,
-                },
-                {
-                    "role": "user",
-                    "content": f"Please summarize the following text in a concise manner, in the language of the text, "
-                               f"with a minimum of {min_length} words and a maximum of {max_length} words:\n\n{text}",
-                },
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
             ],
-            max_tokens=max_length * 2,  # Token approximation for words
+            max_tokens=max_tokens,  # Limit output tokens
         )
-        # Extract the summary from the response
+
         summary = response.choices[0].message.content.strip()
         return summary
     except Exception as e:
