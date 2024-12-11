@@ -1,6 +1,6 @@
 youtube-transcript-api==0.6.3
-transformers==4.27.4
-streamlit==1.25.0
+transformers==4.47.0
+streamlit==1.41.0
 openai==1.57.2
 python-dotenv==1.0.0
-torch==2.0.1
+torch==2.5.1
