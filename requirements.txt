@@ -1,0 +1,7 @@
+youtube-transcript-api
+melotts
+streamlit==1.25.0
+openai==1.57.2
+python-dotenv==1.0.0
+transformers==4.33.0
+torch==2.0.1
