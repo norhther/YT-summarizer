@@ -41,9 +41,9 @@ def login():
 # Main application after login
 def main_app():
     from summarizer import summarize_text
-    from melo_module import generate_audio
-    st.title("YouTube Transcript Summarizer with TTS")
-    st.subheader("Fetch, summarize YouTube transcripts, and optionally generate audio")
+    # from melo_module import generate_audio
+    st.title("YouTube Transcript Summarizer")
+    st.subheader("Fetch, summarize YouTube transcripts")
 
     # Input for YouTube video URL
     youtube_url = st.text_input("Enter YouTube Video URL:", help="Paste the full YouTube video URL here.")
@@ -60,7 +60,7 @@ def main_app():
         max_length = st.number_input("Max Length", min_value=20, max_value=10000, value=500, step=100)
 
     # Checkbox for audio generation
-    generate_audio_checkbox = st.checkbox("Generate audio for the summary")
+    # generate_audio_checkbox = st.checkbox("Generate audio for the summary")
 
     # Button to fetch and summarize
     if st.button("Summarize"):
@@ -78,7 +78,7 @@ def main_app():
 
                     st.subheader("Summary:")
                     st.write(summary)
-
+                    """
                     if generate_audio_checkbox:
                         with st.spinner("Generating audio..."):
                             audio_file = generate_audio(summary, language="EN", output_path="summary_audio.wav")
@@ -87,6 +87,7 @@ def main_app():
                                 st.success("Audio generated and played!")
                             else:
                                 st.error("Failed to generate audio.")
+                    """
                 else:
                     st.error("Failed to fetch transcript. Please check the video URL or language availability.")
             else:
