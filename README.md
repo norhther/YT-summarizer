@@ -1,5 +1,7 @@
 # YouTube Transcript Summarizer
 
+![Logo](img/screenshot.png)
+
 A **Streamlit** application that fetches YouTube video transcripts, applies NLP summarization, and presents concise summaries. The app also supports login functionality with encrypted cookies and allows users to customize the summarization process.
 
 ## Features
