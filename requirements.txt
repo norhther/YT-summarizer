@@ -5,3 +5,4 @@ openai==1.57.2
 python-dotenv==1.0.0
 torch==2.5.1
 streamlit-cookies-manager==0.2.0
+youtube_transcript_api==0.6.3
