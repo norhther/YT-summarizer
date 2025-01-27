@@ -19,8 +19,8 @@ A **Streamlit** application that fetches YouTube video transcripts, applies NLP 
 1. Clone the repository:
 
    ```
-   git clone https://github.com/your-username/your-repo-name.git
-   cd your-repo-name
+   git clone https://github.com/norhther/YT-summarizer
+   cd YT-summarizer
    ```
 
 2. Create and activate a virtual environment:
